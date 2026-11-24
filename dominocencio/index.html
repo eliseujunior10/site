@@ -119,6 +119,8 @@ textarea.em-in{resize:vertical;line-height:1.45}
 .em-sug-none{font-size:13px;color:var(--lb-muted);margin:2px 0 0}
 .em-todas{margin-top:8px}
 .em-todas summary{font-size:13.5px;color:var(--lb-navy);cursor:pointer;margin-bottom:6px}
+.em-sugtxt{align-items:center;margin:-6px 0 14px}
+.em-sugtxt .em-sug-none{flex:1 1 260px;margin:0}
 </style>
 </head>
 <body>
@@ -443,7 +445,8 @@ textarea.em-in{resize:vertical;line-height:1.45}
 <label class="em-f em-ent" hidden><span>Nome da entidade</span><input class="em-in" id="em-ent-nome" type="text"></label>
 <label class="em-f em-ent" hidden><span>CNPJ e área de atuação</span><input class="em-in" id="em-ent-cnpj" type="text"></label>
 </div>
-<label class="em-f"><span>11. Por que é importante? <i>Necessidade, benefício para a comunidade e resultados esperados</i></span><textarea class="em-in" id="em-just" rows="5"></textarea></label>
+<label class="em-f"><span>11. Por que é importante? <i>Necessidade, benefício para a comunidade e resultados esperados</i></span><textarea class="em-in" id="em-just" rows="9"></textarea></label>
+<div class="em-acts em-sugtxt"><button type="button" class="lb-btn em-btn2" id="em-sugerir">Sugerir texto</button><span class="em-sug-none">Monta a justificativa a partir dos itens 5 a 9 e da ação escolhida, com a base legal e o programa do PPA. Depois, complete os trechos entre colchetes.</span></div>
 <div class="em-acts">
 <button type="button" class="lb-btn" id="em-salvar">Salvar emenda</button>
 <button type="button" class="lb-btn em-btn2" id="em-nova">Limpar e começar outra</button>
@@ -1179,6 +1182,120 @@ dash.calc('acoes_rel', {inputs:['qdd'], title:'Ações do PLOA que podem receber
     });
   });
 
+  // ---- "Sugerir texto" (item 11): modelo por tema, sem IA
+  const TEMAS = {
+    agua: {nec: (L) => 'As famílias ' + L + ' não têm abastecimento regular de água. [Descreva como a comunidade se abastece hoje: distância até a fonte, carro-pipa, armazenamento improvisado.] A falta de água tratada aumenta o risco de doenças, sobretudo em crianças e idosos, e se agrava nos períodos de estiagem.',
+      lei: 'A ação atende à prioridade legal da água para consumo humano e para os animais beberem (Lei nº 9.433/1997, art. 1º, III) e ao objetivo de universalizar o acesso à água (Lei nº 11.445/2007)',
+      res: 'com ganhos de higiene, saúde e qualidade de vida, e menos dependência de carro-pipa'},
+    saude: {nec: (L) => 'A população ' + L + ' tem dificuldade de acesso a este atendimento de saúde. [Descreva a necessidade: fila de espera, distância até o atendimento, falta de equipamento, de insumo ou de medicamento.] A demora no atendimento agrava os problemas de saúde e aumenta os custos para as famílias e para o próprio Município.',
+      lei: 'A ação concretiza o direito à saúde (CF, art. 196; Lei nº 8.080/1990) e se enquadra como ação e serviço público de saúde (LC nº 141/2012, art. 3º)',
+      res: 'com mais acesso e melhor qualidade no atendimento de saúde', sel: 'A seleção dos beneficiários seguirá os critérios da Secretaria de Saúde.'},
+    educacao: {nec: (L) => 'Os alunos ' + L + ' enfrentam condições que prejudicam o ensino. [Descreva a necessidade: salas lotadas ou precárias, falta de equipamento, de material ou de transporte.] Essas condições afetam a aprendizagem e a permanência dos alunos na escola.',
+      lei: 'A ação cumpre o dever do Estado com a educação (CF, art. 205; Lei nº 9.394/1996, art. 4º)',
+      res: 'com melhores condições de ensino e de permanência dos alunos na escola'},
+    estrada: {nec: (L) => 'Os moradores ' + L + ' dependem desta via para chegar à escola, ao posto de saúde e ao comércio. [Descreva o problema: trechos intransitáveis no período chuvoso, atoleiros, buracos, risco para veículos e pessoas.] As más condições da via dificultam o acesso aos serviços públicos e o escoamento da produção.',
+      lei: 'A ação garante o direito social ao transporte (CF, art. 6º) e o acesso da população rural aos serviços públicos',
+      res: 'com tráfego seguro durante todo o ano e acesso regular à escola, à saúde e ao comércio'},
+    urbano: {nec: (L) => 'Os moradores ' + L + ' convivem com a falta de infraestrutura urbana. [Descreva a situação atual: rua sem calçamento, poeira e lama, alagamentos, falta de espaço de convivência.] Essa situação afeta a saúde, a mobilidade e a qualidade de vida da comunidade.',
+      lei: 'A ação atende à diretriz de garantir infraestrutura urbana e cidades sustentáveis (Lei nº 10.257/2001, art. 2º, I)',
+      res: 'com melhoria da mobilidade, da salubridade e da qualidade de vida'},
+    esporte: {nec: (L) => 'Os jovens e a comunidade ' + L + ' não têm espaço adequado para a prática de esporte e lazer. [Descreva a situação atual do espaço ou a falta dele.] O esporte contribui para a saúde, a convivência e a prevenção da violência e do uso de drogas.',
+      lei: 'A ação cumpre o dever do Poder Público de fomentar as práticas desportivas e o lazer (CF, art. 217)',
+      res: 'com mais acesso à prática esportiva e ao lazer'},
+    assist: {nec: (L) => 'Famílias em situação de vulnerabilidade ' + L + ' precisam de apoio da assistência social. [Descreva a necessidade e quem será atendido.] Sem esse apoio, ficam expostas à insegurança alimentar e a outras privações.',
+      lei: 'A ação concretiza a assistência social a quem dela necessitar (CF, art. 203; Lei nº 8.742/1993)',
+      res: 'com proteção às famílias e pessoas em situação de vulnerabilidade', sel: 'A seleção dos beneficiários seguirá os critérios da Secretaria de Assistência Social.'},
+    agricultura: {nec: (L) => 'Os agricultores familiares ' + L + ' precisam de apoio para produzir. [Descreva a necessidade: falta de máquinas, de sementes, de água para a produção ou de assistência técnica.] Sem esse apoio, a produção e a renda das famílias ficam comprometidas.',
+      lei: 'A ação apoia a agricultura familiar (CF, art. 187; Lei nº 11.326/2006)',
+      res: 'com aumento da produção, da renda e da segurança alimentar das famílias', sel: 'A seleção dos beneficiários seguirá os critérios da Secretaria de Agricultura.'},
+    energia: {nec: (L) => 'As famílias ' + L + ' sofrem com a falta ou a precariedade da energia elétrica. [Descreva a situação: famílias sem ligação, rede precária, iluminação insuficiente.] Isso limita o uso de equipamentos básicos, a segurança e as atividades produtivas.',
+      lei: 'A ação contribui para a universalização do acesso à energia elétrica (Lei nº 10.438/2002)',
+      res: 'com acesso regular à energia elétrica e mais segurança'},
+    cultura: {nec: (L) => 'A comunidade ' + L + ' precisa de apoio para manter e ampliar as suas atividades culturais. [Descreva a atividade cultural e a sua importância para a comunidade.]',
+      lei: 'A ação cumpre o dever do Estado de garantir o acesso às fontes da cultura e apoiar as manifestações culturais (CF, art. 215)',
+      res: 'com valorização da cultura local e mais acesso à cultura'},
+    habitacao: {nec: (L) => 'Famílias ' + L + ' vivem em moradias precárias. [Descreva a situação: casas de taipa, sem banheiro, com risco de desabamento.] A moradia inadequada expõe as famílias a doenças e a riscos.',
+      lei: 'A ação concretiza o direito social à moradia (CF, art. 6º)',
+      res: 'com moradia digna, segura e salubre'},
+    geral: {nec: (L) => '[Descreva a necessidade da comunidade ' + L + ' que esta emenda atende e por que ela é urgente.]',
+      lei: '', res: '[descreva o benefício esperado]'}
+  };
+  function temaDe(code, texto) {
+    const c = String(code || ''), t = fold(texto);
+    const f = c.slice(0, 2), prog = c.split('.')[2] || '';
+    if (/poco|agua|adutora|cisterna|barreiro|acude|chafariz|carro-pipa/.test(t) || ['0447', '0457'].includes(prog)) return 'agua';
+    if (f === '10') return 'saude';
+    if (f === '12') return 'educacao';
+    if (/estrada|ponte|passagem molhada|vicinal|bueiro/.test(t) || f === '26' || c === '15.451.0021.1080') return 'estrada';
+    if (f === '27') return 'esporte';
+    if (f === '08') return 'assist';
+    if (f === '20') return 'agricultura';
+    if (f === '25') return 'energia';
+    if (f === '13') return 'cultura';
+    if (f === '16' || c === '04.244.0465.2065') return 'habitacao';
+    if (f === '15' || f === '17') return 'urbano';
+    if (/saude|posto|ubs|medicament|remedio|exame|consulta/.test(t)) return 'saude';
+    if (/escola|aluno|creche/.test(t)) return 'educacao';
+    if (/quadra|campo|esporte/.test(t)) return 'esporte';
+    if (/cesta|famili.*carente|idoso/.test(t)) return 'assist';
+    if (/agricult|semente|trator|aracao/.test(t)) return 'agricultura';
+    if (/calcament|praca|rua/.test(t)) return 'urbano';
+    return 'geral';
+  }
+  function localDe(onde) {
+    const o = String(onde || '').trim();
+    if (!o) return 'do Município';
+    const w = fold(o.split(/\s+/)[0]);
+    if (['povoado', 'bairro', 'sitio', 'assentamento', 'distrito', 'conjunto', 'posto', 'centro'].includes(w)) return 'do ' + o;
+    if (['localidade', 'comunidade', 'vila', 'escola', 'ubs', 'zona', 'regiao', 'rua', 'avenida', 'sede', 'fazenda', 'unidade'].includes(w)) return 'da ' + o;
+    return 'de ' + o;
+  }
+  function objetoFrase(obj) {
+    let o = String(obj || '').trim().replace(/[.;\s]+$/, '');
+    if (!o) return '[objeto da emenda]';
+    const first = o.split(/\s+/)[0];
+    const fw = fold(first);
+    o = o.charAt(0).toLowerCase() + o.slice(1);
+    if (/ar$|er$|ir$/.test(fw)) return o;
+    if (/s$/.test(fw)) return (/(coes|oes|cas|as|des|gens)$/.test(fw) ? 'as ' : 'os ') + o;
+    if (/(cao|gem|dade|a)$/.test(fw)) return 'a ' + o;
+    return 'o ' + o;
+  }
+  function sugerirJust(f) {
+    const tema = TEMAS[temaDe(f.acao, f.objeto + ' ' + f.onde)];
+    const L = localDe(f.onde);
+    const info = acaoInfo(f.acao);
+    const prog = info && info.programa ? info.programa.replace(/^(\d{4})\s*-\s*/, 'Programa $1 – ') : '';
+    const v = num(f.valor);
+    const p1 = tema.nec(L);
+    const ob = objetoFrase(f.objeto);
+    const dest = /^a /.test(ob) ? 'à ' + ob.slice(2) : /^o /.test(ob) ? 'ao ' + ob.slice(2) : /^as /.test(ob) ? 'às ' + ob.slice(3) : /^os /.test(ob) ? 'aos ' + ob.slice(3) : 'a ' + ob;
+    const em = !f.onde ? '' : L.startsWith('do ') ? ', no ' + L.slice(3) : L.startsWith('da ') ? ', na ' + L.slice(3) : ', em ' + L.slice(3);
+    let p2 = 'A emenda, no valor de ' + (v > 0 ? brl(v) : '[valor]') + ', destina-se ' + dest + (/(povoado|localidade|comunidade|bairro)/i.test(f.objeto) ? '' : em) + '. ';
+    const lei = tema.lei;
+    if (lei) p2 += lei + '. ';
+    if (prog) p2 += (lei ? 'Está alinhada' : 'A ação está alinhada') + ' ao ' + prog + ', do PPA 2026–2029. ';
+    p2 += '[Se houver cotação, informe o que o valor permite fazer ou comprar.]';
+    if (tema.sel && /cesta|oculos|consulta|exame|kit|semente|fralda|medicament|remedio|cadeira de rodas|auxilio|protese|enxoval|filtro/.test(fold(f.objeto))) p2 += ' ' + tema.sel;
+    const qtd = f.qtd ? f.qtd.replace(/[.;\s]+$/, '') : '[quantidade]';
+    const quem = f.quem ? f.quem.replace(/[.;\s]+$/, '') : '[número de famílias ou pessoas]';
+    const p3 = 'Resultados esperados: ' + qtd + ', beneficiando ' + quem.charAt(0).toLowerCase() + quem.slice(1) + (f.onde ? ' ' + L : '') + ', ' + tema.res + '.';
+    return [p1, p2, p3].join('\n\n');
+  }
+  let sugPend = 0;
+  q('#em-sugerir').forEach((b) => b.addEventListener('click', () => {
+    const f = readForm();
+    if (!f.objeto) { st.msg = 'Preencha primeiro o item 5 (o que será feito) e, se puder, os itens 6 a 9 e a ação.'; dash.draw('em_msg'); return; }
+    const atual = val('em-just').trim();
+    if (atual && atual !== st.ultimaSug && Date.now() - sugPend > 8000) { sugPend = Date.now(); st.msg = 'O item 11 já tem texto. Clique de novo em "Sugerir texto" para substituir.'; dash.draw('em_msg'); return; }
+    const txt = sugerirJust(f);
+    q('#em-just').forEach((e) => { e.value = txt; });
+    st.ultimaSug = txt; sugPend = 0;
+    st.draft = readForm(); save();
+    st.msg = 'Texto sugerido no item 11. Complete os trechos entre colchetes [ ] e ajuste o que precisar.';
+    dash.draw('em_msg');
+  }));
+
   // ---- drawings
   dash.draw('em_titulo', (el) => { el.textContent = st.edit != null ? 'Editando a emenda nº ' + (st.edit + 1) : 'Nova emenda'; });
   dash.draw('em_msg', (el) => { el.textContent = st.msg || ''; });
@@ -1240,6 +1357,8 @@ dash.calc('acoes_rel', {inputs:['qdd'], title:'Ações do PLOA que podem receber
     if (L.saude != null) line(sau >= L.saude - 0.005, 'Saúde: ' + brl(sau) + (sau >= L.saude - 0.005 ? ' (mínimo de ' + brl(L.saude) + ' atendido)' : ' (faltam ' + brl(L.saude - sau) + ' para o mínimo de ' + brl(L.saude) + ')'));
     const fora = st.emendas.map((e, i) => (e.area === 'Saúde' && e.acao && !String(e.acao).startsWith('10.')) ? i + 1 : 0).filter(Boolean);
     if (fora.length) line(false, 'Emenda nº ' + fora.join(', ') + ': marcada como saúde, mas a ação não é de saúde.');
+    const colch = st.emendas.map((e, i) => /\[[^\]]+\]/.test(e.just || '') ? i + 1 : 0).filter(Boolean);
+    if (colch.length) line(false, 'Emenda nº ' + colch.join(', ') + ': complete os trechos entre colchetes [ ] da justificativa (item 11).');
   });
 
   dash.draw('em_lista', (tb) => {
